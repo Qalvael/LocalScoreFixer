@@ -193,7 +193,7 @@ namespace LocalScoreFixer
                         i = Array.FindIndex(songMappings, item => item.folder == strSubFolderName); // Find the SongMapping entry for this folder.
                         if (i > -1)
                         {
-                            songMappings[i].hash = strSongInfo.Substring(strSongInfo.Length - 34, 32);
+                            songMappings[i].hash = strSongInfo.Substring(strSongInfo.IndexOf("\"hash\":\"") + 8, 32); // v1.0.1.1 - improved obatining of hash value.
                         }
                     }
                 }
