@@ -27,7 +27,7 @@ The user can then jump into Beat Saber to see their historical stats restored.
 
 1. Given that <i>Local Score Fixer</i> currently only works with custom songs that are present on the user's PC, one thing I'd like to do is see if there is a way to leverage the Beat Saver API to get the mapping between the old and new format identifiers for custom songs.
 
-2. Perform a similar clean-up for any custom playlists that might have been created via BeatDrop prior to the format conversion.
+2. Perform a similar clean-up for any custom playlists that might have been created via BeatDrop prior to the format conversion. (Completed as part of v1.0.2.2)
 
 
 <br><br><b>How does this work?</b>
