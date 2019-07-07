@@ -322,14 +322,24 @@ namespace LocalScoreFixer
                 {
                     if (strSubFolder.Substring(strSubFolder.Length - 6, 6) != ".cache") // Skip the .cache folder.
                     {
-                        string strSongInfo = File.ReadAllText(strSubFolder + "\\info.json");
                         string strSubFolderName = strSubFolder.Split('\\').Last();
                         i = Array.FindIndex(songMappings, item => item.folder == strSubFolderName); // Find the SongMapping entry for this folder.
                         if (i > -1)
                         {
-                            int intSongNameStart = strSongInfo.IndexOf("\"songName\":\"") + 12;
-                            songMappings[i].name = strSongInfo.Substring(intSongNameStart, strSongInfo.IndexOf("\",\"", intSongNameStart) - intSongNameStart);
-                            songMappings[i].hash = strSongInfo.Substring(strSongInfo.IndexOf("\"hash\":\"") + 8, 32); // v1.0.1.1 - improved obtaining of hash value.
+                            if (File.Exists(strSubFolder + "\\info.json")) // v1.0.2.3 - only try to read a file that exists.
+                            {
+                                string strSongInfo = File.ReadAllText(strSubFolder + "\\info.json");
+                                int intSongNameStart = strSongInfo.IndexOf("\"songName\":\"") + 12;
+                                songMappings[i].name = strSongInfo.Substring(intSongNameStart, strSongInfo.IndexOf("\",\"", intSongNameStart) - intSongNameStart);
+                                songMappings[i].hash = strSongInfo.Substring(strSongInfo.IndexOf("\"hash\":\"") + 8, 32); // v1.0.1.1 - improved obtaining of hash value.
+                            }
+                            else
+                            {
+                                string strSongInfo = File.ReadAllText(strSubFolder + "\\info.dat");
+                                int intSongNameStart = strSongInfo.IndexOf("\"_songName\":") + 14;
+                                songMappings[i].name = strSongInfo.Substring(intSongNameStart, strSongInfo.IndexOf("\",", intSongNameStart) - intSongNameStart);
+                                songMappings[i].hash = string.Empty;
+                            }
                         }
                     }
                 }
@@ -340,34 +350,37 @@ namespace LocalScoreFixer
                 // For each match the levelId will then be replaced with the songHash value from the same SongMapping entry (in the format of "custom_level_<songHash>").
                 foreach (SongMapping smEntry in songMappings)
                 {
-                    // Get an array of indexes where the levelId contains the hash value being processed.
-                    int[] intAllOldIndexes = customSongs.Select((value, index) => new { Value = value, Index = index })
-                                  .Where(item => item.Value.levelId.ToUpper().Contains(smEntry.hash.ToUpper()))
-                                  .Select(item => item.Index)
-                                  .ToArray();
-
-                    foreach (int intOldIndex in intAllOldIndexes)
+                    if (smEntry.hash.Length > 0) // v1.0.2.3 - only try to map an entry with a hash value.
                     {
-                        customSongs[intOldIndex].levelIdAlt = "custom_level_" + smEntry.songHash;
-
-                        // Get an array of indexes where the levelId contains the songHash value being processed to obtain any details from the new format.
-                        int[] intAllNewIndexes = customSongs.Select((value, index) => new { Value = value, Index = index })
-                                      .Where(item => item.Value.levelId.ToUpper().Contains(smEntry.songHash.ToUpper()))
+                        // Get an array of indexes where the levelId contains the hash value being processed.
+                        int[] intAllOldIndexes = customSongs.Select((value, index) => new { Value = value, Index = index })
+                                      .Where(item => item.Value.levelId.ToUpper().Contains(smEntry.hash.ToUpper()))
                                       .Select(item => item.Index)
                                       .ToArray();
 
-                        foreach (int intNewIndex in intAllNewIndexes)
+                        foreach (int intOldIndex in intAllOldIndexes)
                         {
-                            if (customSongs[intOldIndex].difficulty == customSongs[intNewIndex].difficulty) // Only update when the difficulties match.
+                            customSongs[intOldIndex].levelIdAlt = "custom_level_" + smEntry.songHash;
+
+                            // Get an array of indexes where the levelId contains the songHash value being processed to obtain any details from the new format.
+                            int[] intAllNewIndexes = customSongs.Select((value, index) => new { Value = value, Index = index })
+                                          .Where(item => item.Value.levelId.ToUpper().Contains(smEntry.songHash.ToUpper()))
+                                          .Select(item => item.Index)
+                                          .ToArray();
+
+                            foreach (int intNewIndex in intAllNewIndexes)
                             {
-                                // Update the CustomSong entry with the alternate details.
-                                customSongs[intOldIndex].highScoreAlt = customSongs[intNewIndex].highScore;
-                                customSongs[intOldIndex].maxComboAlt = customSongs[intNewIndex].maxCombo;
-                                customSongs[intOldIndex].fullComboAlt = customSongs[intNewIndex].fullCombo;
-                                customSongs[intOldIndex].maxRankAlt = customSongs[intNewIndex].maxRank;
-                                customSongs[intOldIndex].validScoreAlt = customSongs[intNewIndex].validScore;
-                                customSongs[intOldIndex].playCountAlt = customSongs[intNewIndex].playCount;
-                                customSongs[intNewIndex].skip = true;
+                                if (customSongs[intOldIndex].difficulty == customSongs[intNewIndex].difficulty) // Only update when the difficulties match.
+                                {
+                                    // Update the CustomSong entry with the alternate details.
+                                    customSongs[intOldIndex].highScoreAlt = customSongs[intNewIndex].highScore;
+                                    customSongs[intOldIndex].maxComboAlt = customSongs[intNewIndex].maxCombo;
+                                    customSongs[intOldIndex].fullComboAlt = customSongs[intNewIndex].fullCombo;
+                                    customSongs[intOldIndex].maxRankAlt = customSongs[intNewIndex].maxRank;
+                                    customSongs[intOldIndex].validScoreAlt = customSongs[intNewIndex].validScore;
+                                    customSongs[intOldIndex].playCountAlt = customSongs[intNewIndex].playCount;
+                                    customSongs[intNewIndex].skip = true;
+                                }
                             }
                         }
                     }
