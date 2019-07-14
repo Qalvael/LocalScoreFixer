@@ -48,16 +48,10 @@ The relevant local files and folders which <i>Local Score Fixer</i> needs to che
   - This contains references to the folders where each custom song is stored as well as the new songHash identifier.
 
 Once these files and folders are specified the application then runs through the following steps:
-1. When cleaning up Solo mode stats, the PlayerData.dat file is read, broken  up into sections and then all of the song details are stored in a new CustomSong struct. Each entry represents a specific difficulty level for a song (so a song could have multiple CustomSong entries).
-
-A similar exercise happens for fixing Party mode stats, except that the LocalLeaderboards.dat file is read and stored in a new LeaderboardScore struct.
+1. When cleaning up Solo mode stats, the PlayerData.dat file is read, broken  up into sections and then all of the song details are stored in a new CustomSong struct. Each entry represents a specific difficulty level for a song (so a song could have multiple CustomSong entries). A similar exercise happens for fixing Party mode stats, except that the LocalLeaderboards.dat file is read and stored in a new LeaderboardScore struct.
 
 2. Read the SongHashData.dat file and store the folder and new format's identifier into a new SongMapping struct.
 
 3. Check the sub-folders within CustomLevels (except for .cache) and read the info.json file in each one to update the appropriate SongMapping entry with the old format's identifier. After this step the SongMapping entries should all know the old and new identifiers for each song.
 
-4. The new content for the PlayerData.dat or LocalLeaderboards.dat file is then put together by finding the matching CustomSong/LeaderboardScore entries based on the identifier mapping present in the SongMapping entries.
-
-In Solo mode, if a user has recorded a high score/combo for a song prior to the conversion and again after the conversion then the best score/combo will be populated.
-
-Alternatively, if a user has recorded a high score for a song prior to the conversion and again after the conversion within Party mode then these will be brought together and sorted accordingly based on the scores.
+4. The new content for the PlayerData.dat or LocalLeaderboards.dat file is then put together by finding the matching CustomSong/LeaderboardScore entries based on the identifier mapping present in the SongMapping entries. In Solo mode, if a user has recorded a high score/combo for a song prior to the conversion and again after the conversion then the best score/combo will be populated. Alternatively, if a user has recorded a high score for a song prior to the conversion and again after the conversion within Party mode then these will be brought together and sorted accordingly based on the scores.
