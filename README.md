@@ -18,7 +18,7 @@ Having said that, if a user re-downloads a custom song that they had played prev
 
 <br><br><b>Usage</b>
 
-When running <i>Local Score Fixer</i> just specify where the required files/folders are located (guidance is provided on the form) and then click the Go button. This will take a backup of the existing PlayerData.dat file before updating it with the consolidated high score and combo information from the old and new format entries.
+When running <i>Local Score Fixer</i> just specify where the required files/folders are located (guidance is provided on the form) and then click the Go button. This will automatically take a backup of the relevant file before updating it with the consolidated high score and combo information from the old and new format entries.
 
 The user can then jump into Beat Saber to see their historical stats restored.
 
@@ -26,8 +26,6 @@ The user can then jump into Beat Saber to see their historical stats restored.
 <br><br><b>Possible enhancements</b>
 
 1. Given that <i>Local Score Fixer</i> currently only works with custom songs that are present on the user's PC, one thing I'd like to do is see if there is a way to leverage the Beat Saver API to get the mapping between the old and new format identifiers for custom songs.
-
-2. Perform a similar clean-up for any custom playlists that might have been created via BeatDrop prior to the format conversion. (Completed as part of v1.0.2.2)
 
 
 <br><br><b>How does this work?</b>
@@ -39,17 +37,27 @@ The relevant local files and folders which <i>Local Score Fixer</i> needs to che
   - Each sub-folder represents a custom song and contains a file named info.json (song information in the old format).
 
 - C:\Users\\\<username>\AppData\LocalLow\Hyperbolic Magnetism\Beat Saber\PlayerData.dat
-  - This contains the individual entries for both official and custom songs for the user.
+  - This contains the individual entries for both official and custom songs for the user in relation to Solo mode.
+  - After the SongCore mod's conversion process is performed there will be entries in both the old and new format for any existing custom songs.
+
+- C:\Users\\\<username>\AppData\LocalLow\Hyperbolic Magnetism\Beat Saber\LocalLeaderboards.dat
+  - This contains the individual entries for both official and custom songs for the user in relation to Party mode.
   - After the SongCore mod's conversion process is performed there will be entries in both the old and new format for any existing custom songs.
 
 - C:\Users\\\<username>\AppData\LocalLow\Hyperbolic Magnetism\Beat Saber\SongHashData.dat
   - This contains references to the folders where each custom song is stored as well as the new songHash identifier.
 
 Once these files and folders are specified the application then runs through the following steps:
-1. Read the PlayerData.dat file, break this up into sections and then store all of the song details into a new CustomSong struct. Each entry represents a specific difficulty level for a song (so a song could have multiple CustomSong entries).
+1. When cleaning up Solo mode stats, the PlayerData.dat file is read, broken  up into sections and then all of the song details are stored in a new CustomSong struct. Each entry represents a specific difficulty level for a song (so a song could have multiple CustomSong entries).
+
+A similar exercise happens for fixing Party mode stats, except that the LocalLeaderboards.dat file is read and stored in a new LeaderboardScore struct.
 
 2. Read the SongHashData.dat file and store the folder and new format's identifier into a new SongMapping struct.
 
 3. Check the sub-folders within CustomLevels (except for .cache) and read the info.json file in each one to update the appropriate SongMapping entry with the old format's identifier. After this step the SongMapping entries should all know the old and new identifiers for each song.
 
-4. The new content for the PlayerData.dat file is then put together by finding the matching CustomSong entries based on the identifier mapping present in the SongMapping entries. If a user has recorded a high score/combo for a song prior to the conversion and again after the conversion then the best score/combo will be populated.
+4. The new content for the PlayerData.dat or LocalLeaderboards.dat file is then put together by finding the matching CustomSong/LeaderboardScore entries based on the identifier mapping present in the SongMapping entries.
+
+In Solo mode, if a user has recorded a high score/combo for a song prior to the conversion and again after the conversion then the best score/combo will be populated.
+
+Alternatively, if a user has recorded a high score for a song prior to the conversion and again after the conversion within Party mode then these will be brought together and sorted accordingly based on the scores.
