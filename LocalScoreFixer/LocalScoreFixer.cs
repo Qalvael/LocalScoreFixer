@@ -667,7 +667,10 @@ namespace LocalScoreFixer
                     i++;
                 }
             }
-            //sbNewLeaderboardData.Append("]}");
+            if (!(sbNewLeaderboardData.ToString().Substring(sbNewLeaderboardData.Length - 5) == "}]}]}")) // v1.0.3.5 - Lazy way of setting correct brackets at end of file.
+            {
+                sbNewLeaderboardData.Append("]}");
+            }
             File.WriteAllText(ofdLeaderboards.FileName, sbNewLeaderboardData.ToString()); // Overwrite the existing information in the LocalLeaderboards.dat file.
             txtStatus.Text = "Process completed successfully.";
         }
