@@ -5,6 +5,7 @@ using System.Data;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -13,6 +14,23 @@ using System.Xml.Serialization;
 
 namespace LocalScoreFixer
 {
+    [Serializable]
+    public struct BeatSaverSong // This structure stores an individual custom song entry from the Beat Saver API.
+    {
+        public string songName;
+        public string songSubName;
+        public string levelAuthorName;
+        public string songAuthorName;
+        public string bpm;
+        public bool easy;
+        public bool normal;
+        public bool hard;
+        public bool expert;
+        public bool expertPlus;
+        public string key;
+        public string hash;
+    }
+
     [Serializable]
     public struct CustomSong // This structure stores an individual custom song entry from the PlayerData.dat file. 'Alt' properties exist to store values from new format.
     {
@@ -39,6 +57,10 @@ namespace LocalScoreFixer
     public struct LeaderboardScore // This structure stores high score information for an individual song/difficulty from the LocalLeaderboards.dat file. 'Alt' properties exist to store values from new format.
     {
         public string leaderboardId;
+        public string songName;
+        public string songSubName;
+        public string authorName;
+        public string bpm;
         public string difficulty;
         public string scores;
         public string leaderboardIdAlt;
@@ -66,6 +88,7 @@ namespace LocalScoreFixer
     {
         public string name;
         public string folder;
+        public string difficulties;
         public string hash;
         public string songHash;
     }
@@ -82,9 +105,23 @@ namespace LocalScoreFixer
             txtStatus.Text = "Select the folders for custom songs and local Beat Saber data.";
             //fbdCustomSongs.SelectedPath = "E:\\SteamLibrary\\steamapps\\common\\Beat Saber\\Beat Saber_Data\\CustomLevels"; // (specify folder for convenience while testing)
             //fbdAppData.SelectedPath = "C:\\Users\\Admin\\AppData\\LocalLow\\Hyperbolic Magnetism\\Beat Saber"; // (specify folder for convenience while testing)
+            fbdAppData.SelectedPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) + "Low\\Hyperbolic Magnetism\\Beat Saber"; // v1.0.3.6 - Determine the AppData folder without needing to browse to it.
+
+            // v1.0.4.7 - Check to see if BeatSaver.xml already exists in the same folder as the LocalScoreFixer.exe executable.
+            // If it doesn't then generate this using the Beat Saver API.
+            // Otherwise, de-serialise BeatSDaver.xml into an array of BeatSaverSong entries.
+            ofdBeatSaver.InitialDirectory = Application.StartupPath;
+            if (!File.Exists(ofdBeatSaver.FileName))
+            {
+                Globals.allBeatSaverSongs = GetBeatSaverData();
+            }
+            else
+            {
+                Globals.allBeatSaverSongs = DeSerialise(ofdBeatSaver.FileName);
+            }
         }
 
-        private void DisplayPlaylistElements(bool blnDisplay) // Showe or hide playlist UI elements.
+        private void DisplayPlaylistElements(bool blnDisplay) // Show or hide playlist UI elements.
         {
             if (blnDisplay)
             {
@@ -108,6 +145,96 @@ namespace LocalScoreFixer
                 pnlMain.Height = 193;
                 this.Height = 300;
             }
+        }
+
+        private BeatSaverSong[] GetBeatSaverData()
+        {
+            string strDump = string.Empty;
+            string url = @"https://beatsaver.com/api/download/dump/maps"; // Get info for all songs from Beat Saver API.
+
+            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
+            request.AutomaticDecompression = DecompressionMethods.GZip;
+            using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
+            using (Stream stream = response.GetResponseStream())
+            using (StreamReader reader = new StreamReader(stream))
+            {
+                strDump = reader.ReadToEnd();
+            }
+
+            string[] strBeatSaverSongs = strDump.Split(new string[] { "},{\"metadata\":" }, StringSplitOptions.None); // Separate into individual songs.
+            BeatSaverSong[] allBeatSaverSongs = new BeatSaverSong[strBeatSaverSongs.Count()];
+            int i = 0, intIndex;
+            foreach (string strSong in strBeatSaverSongs)
+            {
+                // Populate values for each BeatSaverSong entry.
+                string strTemp = strSong.Replace("\\\"", "%%");
+                intIndex = strTemp.IndexOf("songName") + 11;
+                allBeatSaverSongs[i].songName = strTemp.Substring(intIndex, strTemp.IndexOf("\"", intIndex) - intIndex).Replace("%%", "\\\"").Trim();
+                intIndex = strTemp.IndexOf("songSubName") + 14;
+                allBeatSaverSongs[i].songSubName = strTemp.Substring(intIndex, strTemp.IndexOf("\"", intIndex) - intIndex).Replace("%%", "\\\"").Trim();
+                intIndex = strTemp.IndexOf("levelAuthorName") + 18;
+                allBeatSaverSongs[i].levelAuthorName = strTemp.Substring(intIndex, strTemp.IndexOf("\"", intIndex) - intIndex).Replace("%%", "\\\"").Trim();
+                intIndex = strTemp.IndexOf("songAuthorName") + 17;
+                allBeatSaverSongs[i].songAuthorName = strTemp.Substring(intIndex, strTemp.IndexOf("\"", intIndex) - intIndex).Replace("%%", "\\\"").Trim();
+                intIndex = strSong.IndexOf("bpm") + 5;
+                allBeatSaverSongs[i].bpm = strSong.Substring(intIndex, strSong.IndexOf('}', intIndex) - intIndex);
+                intIndex = strSong.IndexOf("easy") + 6;
+                if (strSong.Substring(intIndex, 4) == "true")
+                {
+                    allBeatSaverSongs[i].easy = true;
+                }
+                else
+                {
+                    allBeatSaverSongs[i].easy = false;
+                }
+                intIndex = strSong.IndexOf("normal") + 8;
+                if (strSong.Substring(intIndex, 4) == "true")
+                {
+                    allBeatSaverSongs[i].normal = true;
+                }
+                else
+                {
+                    allBeatSaverSongs[i].normal = false;
+                }
+                intIndex = strSong.IndexOf("hard") + 6;
+                if (strSong.Substring(intIndex, 4) == "true")
+                {
+                    allBeatSaverSongs[i].hard = true;
+                }
+                else
+                {
+                    allBeatSaverSongs[i].hard = false;
+                }
+                intIndex = strSong.IndexOf("expert") + 8;
+                if (strSong.Substring(intIndex, 4) == "true")
+                {
+                    allBeatSaverSongs[i].expert = true;
+                }
+                else
+                {
+                    allBeatSaverSongs[i].expert = false;
+                }
+                intIndex = strSong.IndexOf("expertPlus") + 12;
+                if (strSong.Substring(intIndex, 4) == "true")
+                {
+                    allBeatSaverSongs[i].expertPlus = true;
+                }
+                else
+                {
+                    allBeatSaverSongs[i].expertPlus = false;
+                }
+                intIndex = strSong.IndexOf("key") + 6;
+                allBeatSaverSongs[i].key = strSong.Substring(intIndex, strSong.IndexOf("\"", intIndex) - intIndex);
+                intIndex = strSong.IndexOf("hash") + 7;
+                allBeatSaverSongs[i].hash = strSong.Substring(intIndex, strSong.IndexOf("\"", intIndex) - intIndex);
+                i++;
+            }
+
+            // Output Beat Saver song info to file in application directory.
+            // This will be re-used by Local Score Fixer to avoid having to generate the file every time.
+            Serialise(allBeatSaverSongs, ofdBeatSaver.FileName);
+
+            return allBeatSaverSongs;
         }
 
         private OpenFileDialog ReadFile(OpenFileDialog ofdFile, string strFilename) // Read the specified file into the OpenFileDialog.
@@ -285,7 +412,8 @@ namespace LocalScoreFixer
                 }
             }
         }
-        
+
+        // Obtain the difficulty which is located at the end of the _leaderboardId value in each Party-mode entry.
         private string GetPartyModeDifficulty(string strSongDetails)
         {
             if (strSongDetails.EndsWith("Easy"))
@@ -313,34 +441,85 @@ namespace LocalScoreFixer
                 return string.Empty;
             }
         }
-        private static void Serialise(CustomSong[] input, string strFilename) // Allows a CustomSong array to be output to a file in XML format.
+
+        // Construct a string containing the available difficulties for a given BeatSaverSong entry sorted alphabetically.
+        private string GetBeatSaverDifficulties(BeatSaverSong bsSong)
+        {
+            StringBuilder sbDifficulties = new StringBuilder();
+
+            if (bsSong.easy)
+            {
+                sbDifficulties.Append("-Easy");
+            }
+            if (bsSong.normal)
+            {
+                sbDifficulties.Append("-Normal");
+            }
+            if (bsSong.hard)
+            {
+                sbDifficulties.Append("-Hard");
+            }
+            if (bsSong.expert)
+            {
+                sbDifficulties.Append("-Expert");
+            }
+            if (bsSong.expertPlus)
+            {
+                sbDifficulties.Append("-ExpertPlus");
+            }
+
+            string[] strDifficulties = sbDifficulties.ToString().Substring(1).Split('-');
+            Array.Sort(strDifficulties, (x, y) => String.Compare(x, y));
+            string strAllDifficulties = String.Join("-", strDifficulties);
+
+            return strAllDifficulties;
+        }
+
+        private static void Serialise(BeatSaverSong[] input, string strFilename) // Allows a BeatSaverSong array to be output to a file in XML format.
         {
             var serializer = new XmlSerializer(input.GetType());
-            var sw = new StreamWriter(strFilename);
+            StreamWriter sw = new StreamWriter(strFilename);
+            serializer.Serialize(sw, input);
+            sw.Close();
+        }
+
+        private static BeatSaverSong[] DeSerialise(string strFilename)
+        {
+            XmlSerializer serializer = new XmlSerializer(typeof(BeatSaverSong[]));
+            using (FileStream reader = new FileStream(strFilename, FileMode.Open))
+            {
+                return (BeatSaverSong[])serializer.Deserialize(reader);
+            }
+        }
+
+        private static void Serialise(CustomSong[] input, string strFilename) // Allows a CustomSong array to be output to a file in XML format.
+        {
+            XmlSerializer serializer = new XmlSerializer(input.GetType());
+            StreamWriter sw = new StreamWriter(strFilename);
             serializer.Serialize(sw, input);
             sw.Close();
         }
 
         private static void Serialise(LeaderboardScore[] input, string strFilename) // Allows a LeaderboardScore array to be output to a file in XML format.
         {
-            var serializer = new XmlSerializer(input.GetType());
-            var sw = new StreamWriter(strFilename);
+            XmlSerializer serializer = new XmlSerializer(input.GetType());
+            StreamWriter sw = new StreamWriter(strFilename);
             serializer.Serialize(sw, input);
             sw.Close();
         }
 
         private static void Serialise(PlaylistSong[] input, string strFilename) // Allows a PlaylistSong array to be output to a file in XML format.
         {
-            var serializer = new XmlSerializer(input.GetType());
-            var sw = new StreamWriter(strFilename);
+            XmlSerializer serializer = new XmlSerializer(input.GetType());
+            StreamWriter sw = new StreamWriter(strFilename);
             serializer.Serialize(sw, input);
             sw.Close();
         }
 
         private static void Serialise(SongMapping[] input, string strFilename) // Allows a SongMapping array to be output to a file in XML format.
         {
-            var serializer = new XmlSerializer(input.GetType());
-            var sw = new StreamWriter(strFilename);
+            XmlSerializer serializer = new XmlSerializer(input.GetType());
+            StreamWriter sw = new StreamWriter(strFilename);
             serializer.Serialize(sw, input);
             sw.Close();
         }
@@ -374,12 +553,23 @@ namespace LocalScoreFixer
                     i = Array.FindIndex(songMappings, item => item.folder == strSubFolderName); // Find the SongMapping entry for this folder.
                     if (i > -1)
                     {
+                        int intNextIndex = 0;
+                        StringBuilder sbDifficulties = new StringBuilder();
+
                         if (File.Exists(strSubFolder + "\\info.json")) // v1.0.2.3 - Only try to read a file that exists.
                         {
                             string strSongInfo = File.ReadAllText(strSubFolder + "\\info.json");
                             int intSongNameStart = strSongInfo.IndexOf("\"songName\":\"") + 12;
                             songMappings[i].name = strSongInfo.Substring(intSongNameStart, strSongInfo.IndexOf("\",\"", intSongNameStart) - intSongNameStart);
                             songMappings[i].hash = strSongInfo.Substring(strSongInfo.IndexOf("\"hash\":\"") + 8, 32); // v1.0.1.1 - Improved obtaining of hash value.
+
+                            // v1.0.4.7 - Capture available difficulty levels from info.json file.
+                            while (strSongInfo.IndexOf("{\"difficulty\":", intNextIndex) > 0)
+                            {
+                                intNextIndex = strSongInfo.IndexOf("{\"difficulty\":", intNextIndex) + 15;
+                                sbDifficulties.Append("-" + strSongInfo.Substring(intNextIndex, strSongInfo.IndexOf('"', intNextIndex) - intNextIndex));
+                            }
+                            songMappings[i].difficulties = sbDifficulties.ToString().Substring(1);
                         }
                         else
                         {
@@ -387,6 +577,14 @@ namespace LocalScoreFixer
                             int intSongNameStart = strSongInfo.IndexOf("\"_songName\":") + 14;
                             songMappings[i].name = strSongInfo.Substring(intSongNameStart, strSongInfo.IndexOf("\",", intSongNameStart) - intSongNameStart);
                             songMappings[i].hash = string.Empty;
+
+                            // v1.0.4.7 - Capture available difficulty levels from info.dat file.
+                            while (strSongInfo.IndexOf("\"_difficulty\":", intNextIndex) > 0)
+                            {
+                                intNextIndex = strSongInfo.IndexOf("\"_difficulty\":", intNextIndex) + 16;
+                                sbDifficulties.Append("-" + strSongInfo.Substring(intNextIndex, strSongInfo.IndexOf('"', intNextIndex) - intNextIndex));
+                            }
+                            songMappings[i].difficulties = sbDifficulties.ToString().Substring(1);
                         }
                     }
                 }
@@ -438,13 +636,11 @@ namespace LocalScoreFixer
                 i++;
             }
 
-            SongMapping[] songMappings = GenerateSongMapping(); // Create SongMapping entries for comparison with CustomSong entries.
-
             // The SongMapping array now contains the old (hash) and new (songHash) values for each custom song currently installed.
             // We can now go through each SongMapping entry and use the hash value to find the matching CustomSong entries (via the levelId property).
             // There can be multiple CustomSong entries where the levelId has the same hash/songHash value so difficulty is also used to find matches.
             // For each match the levelId will then be replaced with the songHash value from the same SongMapping entry (in the format of "custom_level_<songHash>").
-            foreach (SongMapping smEntry in songMappings)
+            foreach (SongMapping smEntry in Globals.songMappings)
             {
                 if (smEntry.hash.Length > 0) // v1.0.2.3 - Only try to map an entry with a hash value.
                 {
@@ -483,8 +679,8 @@ namespace LocalScoreFixer
             }
 
             // Output info to file (uncomment below lines to see contents of customSongs and/or songMappings array in Local Score Fixer folder).
-            //Serialise(customSongs, "CustomSongs.txt");
-            //Serialise(songMappings, "SongMappings.txt");
+            //Serialise(customSongs, "CustomSongs.xml");
+            //Serialise(songMappings, "SongMappings.xml");
 
             // Create a copy of PlayerData.dat using the current timestamp in the filename to avoid overwriting old backups.
             File.Copy(ofdPlayerData.FileName, Path.Combine(Path.GetDirectoryName(ofdPlayerData.FileName), "PlayerData_" + DateTime.Now.ToString("yyyyMMddHHmmssffff") + ".dat"));
@@ -561,20 +757,114 @@ namespace LocalScoreFixer
                 string strTempReplace = arrPartyScoreInfo[i].Replace("\\\"", "%%"); // Replace \" with %% to avoid issues with splitting on quotes (").
                 int intSongIdStart = strTempReplace.IndexOf('"', 19);
                 string strTempSongInfo = strTempReplace.Substring(19, intSongIdStart - 19);
+                
+                if (strTempSongInfo.Contains('∎')) // v1.0.4.7 - Capture additional info for matching against BeatSaverSong array.
+                {
+                    string[] strOldFormatInfo = strTempSongInfo.Split('∎');
+
+                    leaderboardScores[i].leaderboardId = strOldFormatInfo[0].Replace("%%", "\\\"").Trim(); // Revert %% back to \" so that the original value is stored.
+                    leaderboardScores[i].songName = strOldFormatInfo[1].Replace("%%", "\\\"").Replace("´", string.Empty).Trim();
+                    leaderboardScores[i].songSubName = strOldFormatInfo[2].Replace("%%", "\\\"").Trim();
+                    if (strOldFormatInfo[3].Length > 0)
+                    {
+                        leaderboardScores[i].authorName = strOldFormatInfo[3].Replace("%%", "\\\"").Trim();
+                    }
+                    else // The BeatSaverSong entries have "unknown" specified instead of having a blank songAuthorName value so this is set to allow for matching.
+                    {
+                        leaderboardScores[i].authorName = "unknown";
+                    }
+                    leaderboardScores[i].bpm = strOldFormatInfo[4];
+                    leaderboardScores[i].difficulty = GetPartyModeDifficulty(strTempSongInfo);
+
+                    // v1.0.4.7 - Look for a matching BeatSaverSong song while processing each LeaderboardScore entry that has the old leaderboardId format.
+                    // This will try narrow down possible matches by comparing difficulties against the SongMapping array (if one is present).
+                    int[] intBeatSaverIndexes = Globals.allBeatSaverSongs.Select((value, index) => new { Value = value, Index = index })
+                        .Where(item => 
+                            item.Value.songName == leaderboardScores[i].songName &&
+                            item.Value.songSubName == leaderboardScores[i].songSubName &&
+                            item.Value.songAuthorName.ToUpper() == leaderboardScores[i].authorName.ToUpper())
+                        .Select(item => item.Index)
+                        .ToArray();
+
+                    // Obtain the difficulties for the matching SongMapping entry.
+                    if (!String.IsNullOrEmpty(Globals.songMappings.FirstOrDefault(item => item.hash.ToUpper() == leaderboardScores[i].leaderboardId.ToUpper()).difficulties))
+                    {
+                        string[] strDifficulties = Globals.songMappings.First(item => item.hash.ToUpper() == leaderboardScores[i].leaderboardId.ToUpper()).difficulties.Split('-');
+                        if (strDifficulties.Count() > 0) // Try to compare these against the matched BeatSaverSong entries.
+                        {
+                            Array.Sort(strDifficulties, (x, y) => String.Compare(x, y)); // Sort the difficulties alphabetically so that the comparison is accurate.
+                            string strAllDifficulties = String.Join("-", strDifficulties);
+
+                            int intMatch = -1;
+
+                            // Compare these difficulties against the ones specified in each matching BeatSaverSong entry.
+                            for (int j = 0; j < intBeatSaverIndexes.Count(); j++)
+                            {
+                                int intBSIndex = intBeatSaverIndexes[j];
+                                string strBSDifficulties = GetBeatSaverDifficulties(Globals.allBeatSaverSongs[intBSIndex]);
+
+                                if (strAllDifficulties == strBSDifficulties)
+                                {
+                                    if (intMatch == -1) // Only capture the index if this is the first time a successful match has been done.
+                                    {
+                                        intMatch = intBeatSaverIndexes[j];
+                                    }
+                                    else // There are multiple matches so set intMatch as -2 to indicate this.
+                                    {
+                                        intMatch = -2;
+                                    }
+                                }
+                            }
+
+                            if (intMatch >= 0) // Only set the leaderboardIdAlt value if a legitimate matched index is present.
+                            {
+                                leaderboardScores[i].leaderboardIdAlt = "custom_level_" + Globals.allBeatSaverSongs[intMatch].hash.ToUpper() + leaderboardScores[i].difficulty;
+                            }
+                        }
+                    }
+                    else // Otherwise, only populate the leaderboardIdAlt value if a single BeatSaverSong song is found with the same basic details.
+                    {
+                        if (intBeatSaverIndexes.Count() == 1)
+                        {
+                            leaderboardScores[i].leaderboardIdAlt = "custom_level_" + Globals.allBeatSaverSongs[intBeatSaverIndexes[0]].hash.ToUpper() + leaderboardScores[i].difficulty;
+                        }
+                        else // No unique matching could be done so revert the previous leaderboardId value and set leaderboardIdAlt to be blank.
+                        {
+                            leaderboardScores[i].leaderboardId = strTempSongInfo; // Revert the previous leaderboardId value.
+                            leaderboardScores[i].leaderboardIdAlt = string.Empty;
+                        }
+                    }
+                }
+                else if (strTempSongInfo.StartsWith("custom_level_"))
+                {
+                    leaderboardScores[i].leaderboardId = strTempSongInfo.Replace("%%", "\\\""); // Revert %% back to \" so that the original value is stored.
+                    leaderboardScores[i].songName = string.Empty;
+                    leaderboardScores[i].songSubName = string.Empty;
+                    leaderboardScores[i].authorName = string.Empty;
+                    leaderboardScores[i].bpm = string.Empty;
+                    leaderboardScores[i].difficulty = GetPartyModeDifficulty(strTempSongInfo);
+                    leaderboardScores[i].leaderboardIdAlt = string.Empty;
+                }
+                else
+                {
+                    leaderboardScores[i].leaderboardId = strTempSongInfo.Replace("%%", "\\\""); // Revert %% back to \" so that the original value is stored.
+                    leaderboardScores[i].songName = string.Empty;
+                    leaderboardScores[i].songSubName = string.Empty;
+                    leaderboardScores[i].authorName = string.Empty;
+                    leaderboardScores[i].bpm = string.Empty;
+                    leaderboardScores[i].difficulty = GetPartyModeDifficulty(strTempSongInfo);
+                    leaderboardScores[i].leaderboardIdAlt = string.Empty;
+                }
 
                 // Populate the LeaderboardScore entry.
-                leaderboardScores[i].leaderboardId = strTempSongInfo.Replace("%%", "\\\""); // Revert %% back to \" so that the original value is stored.
-                leaderboardScores[i].difficulty = GetPartyModeDifficulty(strTempSongInfo);
                 leaderboardScores[i].scores = arrPartyScoreInfo[i].Substring(arrPartyScoreInfo[i].IndexOf(":[{") + 2);
-                leaderboardScores[i].leaderboardIdAlt = string.Empty;
                 leaderboardScores[i].skip = false;
             }
 
-            SongMapping[] songMappings = GenerateSongMapping(); // Create SongMapping entries for comparison with LeaderboardScore entries.
-
+            /*
             // The SongMapping array now contains the old (hash) and new (songHash) values for each custom song currently installed.
             // We can now go through each SongMapping entry and use the hash value to find the matching LeaderboardScore entries (via the leaderboardId property).
-            // For each match the leaderboardId will then be replaced with the songHash value from the same SongMapping entry (in the format of "custom_level_<songHash>").
+            // For each match the leaderboardId will then be replaced with the songHash value from the same SongMapping entry (in the format of "custom_level_<songHash><difficulty>").
             foreach (SongMapping smEntry in songMappings)
             {
                 if (smEntry.hash.Length > 0) // v1.0.2.3 - Only try to map an entry with a hash value.
@@ -633,11 +923,64 @@ namespace LocalScoreFixer
                         }
                     }
                 }
+            }*/
+
+            // v1.0.4.7 - Find any instances where the leaderboardIdAlt contains the same value as another LeaderboardScore entry in order to combine the scores.
+            int[] intIndexes = leaderboardScores.Select((value, index) => new { Value = value, Index = index })
+                                      .Where(item => !String.IsNullOrEmpty(item.Value.leaderboardIdAlt))
+                                      .Select(item => item.Index)
+                                      .ToArray();
+
+            foreach (int intIndex in intIndexes)
+            {
+                int[] intOtherIndexes = leaderboardScores.Select((value, index) => new { Value = value, Index = index })
+                      .Where(item =>
+                        item.Value.leaderboardId.ToUpper() == leaderboardScores[intIndex].leaderboardIdAlt.ToUpper() &&
+                        item.Value.difficulty == leaderboardScores[intIndex].difficulty)
+                      .Select(item => item.Index)
+                      .ToArray();
+
+                // Typically there would only be one other LeaderboardScore entry at most which requires scores to be consolidated.
+                // However, this will allow any nunber of matching entries to be consolidated by looping through them and updating the scores accordingly.
+                foreach (int intOtherIndex in intOtherIndexes)
+                {
+                    // Consolidate any additional scores, sort them by highest score and update the LeaderboardScore entry.
+                    string strAllScores = leaderboardScores[intIndex].scores + "," + leaderboardScores[intOtherIndex].scores;
+                    StringBuilder sbScoreInfo = new StringBuilder();
+                    Regex regex = new Regex(@"{([^{}]+)}*"); // Separate the score information by getting the text between {} brackets.
+                    LBScore[] allScores = new LBScore[regex.Matches(strAllScores).Count];
+                    i = 0;
+                    foreach (Match matchScore in regex.Matches(strAllScores))
+                    {
+                        string[] strTempInfo = matchScore.Value.Split(',');
+                        allScores[i].score = Convert.ToInt32(strTempInfo[0].Substring(strTempInfo[0].IndexOf(':') + 1));
+                        allScores[i].playerName = strTempInfo[1].Substring(strTempInfo[1].IndexOf(':') + 1);
+                        allScores[i].fullCombo = strTempInfo[2].Substring(strTempInfo[2].IndexOf(':') + 1);
+                        allScores[i].timestamp = strTempInfo[3].Substring(strTempInfo[3].IndexOf(':') + 1);
+                        i++;
+                    }
+
+                    IEnumerable<LBScore> query = allScores.OrderByDescending(item => item.score); // Sort the scores from highest to lowest.
+                    i = 0;
+                    foreach (LBScore item in query.ToArray())
+                    {
+                        if (i > 0)
+                        {
+                            sbScoreInfo.Append(",");
+                        }
+                        sbScoreInfo.Append("{");
+                        sbScoreInfo.AppendFormat("\"_score\":{0},\"_playerName\":{1},\"_fullCombo\":{2},\"_timestamp\":{3}", item.score.ToString(), item.playerName, item.fullCombo, item.timestamp);
+                        i++;
+                    }
+                    leaderboardScores[intIndex].scores = sbScoreInfo.ToString();
+                    leaderboardScores[intOtherIndex].skip = true; // Set the skip flag so that this matched LeaderboardScore entry isn't included in the updated file.
+                }
             }
 
+
             // Output info to file (uncomment below lines to see contents of leaderboardScores and/or songMappings array in Local Score Fixer folder).
-            //Serialise(leaderboardScores, "LeaderboardScore.txt");
-            //Serialise(songMappings, "SongMappings.txt");
+            //Serialise(leaderboardScores, "LeaderboardScore.xml");
+            //Serialise(songMappings, "SongMappings.xml");
 
             // Create a copy of LocalLeaderboards.dat using the current timestamp in the filename to avoid overwriting old backups.
             File.Copy(ofdLeaderboards.FileName, Path.Combine(Path.GetDirectoryName(ofdLeaderboards.FileName), "LocalLeaderboards_" + DateTime.Now.ToString("yyyyMMddHHmmssffff") + ".dat"));
@@ -721,8 +1064,6 @@ namespace LocalScoreFixer
                 i++;
             }
 
-            SongMapping[] songMappings = GenerateSongMapping(); // Create SongMapping entries for comparison with PlaylistSong entries.
-
             // The PlaylistSong array will be compared against the SongMapping array to ensure that the songHash values are populated.
             // This step will only be performed if the PlaylistSong array has at leasat one old hash value.
             if (blnSongListCompare)
@@ -731,19 +1072,19 @@ namespace LocalScoreFixer
                 {
                     if (playlistSongs[i].songHash.Length == 0) // Do we need to populate the songHash value?
                     {
-                        playlistSongs[i].songHash = songMappings.First(item => item.hash.ToUpper() == playlistSongs[i].hash.ToUpper()).songHash;
+                        playlistSongs[i].songHash = Globals.songMappings.First(item => item.hash.ToUpper() == playlistSongs[i].hash.ToUpper()).songHash;
                     }
 
                     if (playlistSongs[i].name.Length == 0) // Do we need to populate the name value?
                     {
-                        playlistSongs[i].name = songMappings.First(item => item.songHash.ToUpper() == playlistSongs[i].songHash.ToUpper()).name;
+                        playlistSongs[i].name = Globals.songMappings.First(item => item.songHash.ToUpper() == playlistSongs[i].songHash.ToUpper()).name;
                     }
                 }
             }
 
             // Output info to file (uncomment below lines to see contents of playlistSongs array in Local Score Fixer folder).
-            //Serialise(playlistSongs, "PlaylistSongs.txt");
-            //Serialise(songMappings, "SongMappings.txt");
+            //Serialise(playlistSongs, "PlaylistSongs.xml");
+            //Serialise(songMappings, "SongMappings.xml");
 
             // Create a copy of the selected playlist file using the current timestamp in the filename to avoid overwriting old backups.
             File.Copy(ofdPlaylist.FileName, Path.Combine(Path.GetDirectoryName(ofdPlaylist.FileName), ofdPlaylist.FileName + "_" + DateTime.Now.ToString("yyyyMMddHHmmssffff") + ".bplist.txt"));
@@ -767,10 +1108,16 @@ namespace LocalScoreFixer
             File.WriteAllText(ofdPlaylist.FileName, sbNewPlaylistFile.ToString()); // Overwrite the existing information in the playlist file.
             txtStatus.Text = "Process completed successfully.";
         }
-        
+
+        private void btnRefresh_Click(object sender, EventArgs e)
+        {
+            Globals.allBeatSaverSongs = GetBeatSaverData();
+        }
+
         private void btnGo_Click(object sender, EventArgs e)
         {
             txtStatus.Text = "Processing...";
+            Globals.songMappings = GenerateSongMapping();
 
             if (radModeSoloScores.Checked)
             {
@@ -785,5 +1132,10 @@ namespace LocalScoreFixer
                 FixPlaylist();
             }
         }
+    }
+    public static class Globals
+    {
+        public static BeatSaverSong[] allBeatSaverSongs = null; // BeatSaverSong array for storing the entries of all custom songs from the Beat Saver API.
+        public static SongMapping[] songMappings = null; // SongMapping array for storing the entries from the SongHashData.dat file.
     }
 }

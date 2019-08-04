@@ -54,6 +54,8 @@
             this.ofdPlaylist = new System.Windows.Forms.OpenFileDialog();
             this.fbdAppData = new System.Windows.Forms.FolderBrowserDialog();
             this.ofdLeaderboards = new System.Windows.Forms.OpenFileDialog();
+            this.ofdBeatSaver = new System.Windows.Forms.OpenFileDialog();
+            this.btnRefresh = new System.Windows.Forms.Button();
             this.pnlMain.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -299,12 +301,28 @@
             // 
             this.ofdLeaderboards.Filter = "Dat Files|*.dat";
             // 
+            // ofdBeatSaver
+            // 
+            this.ofdBeatSaver.FileName = "BeatSaver.xml";
+            // 
+            // btnRefresh
+            // 
+            this.btnRefresh.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnRefresh.Location = new System.Drawing.Point(514, 18);
+            this.btnRefresh.Name = "btnRefresh";
+            this.btnRefresh.Size = new System.Drawing.Size(141, 23);
+            this.btnRefresh.TabIndex = 10;
+            this.btnRefresh.Text = "Refresh Beat Saver info";
+            this.btnRefresh.UseVisualStyleBackColor = true;
+            this.btnRefresh.Click += new System.EventHandler(this.btnRefresh_Click);
+            // 
             // LocalScoreFixer
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.SystemColors.Control;
             this.ClientSize = new System.Drawing.Size(684, 311);
+            this.Controls.Add(this.btnRefresh);
             this.Controls.Add(this.pnlMain);
             this.Controls.Add(this.lblTitle);
             this.Name = "LocalScoreFixer";
@@ -344,6 +362,8 @@
         private System.Windows.Forms.FolderBrowserDialog fbdAppData;
         private System.Windows.Forms.OpenFileDialog ofdLeaderboards;
         private System.Windows.Forms.RadioButton radModePartyScores;
+        private System.Windows.Forms.OpenFileDialog ofdBeatSaver;
+        private System.Windows.Forms.Button btnRefresh;
     }
 }
 
