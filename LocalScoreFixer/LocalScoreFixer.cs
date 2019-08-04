@@ -35,6 +35,10 @@ namespace LocalScoreFixer
     public struct CustomSong // This structure stores an individual custom song entry from the PlayerData.dat file. 'Alt' properties exist to store values from new format.
     {
         public string levelId;
+        public string songName;
+        public string songSubName;
+        public string authorName;
+        public string bpm;
         public string difficulty;
         public string beatmapCharacteristicName;
         public string highScore;
@@ -102,15 +106,25 @@ namespace LocalScoreFixer
             // Hide playlist UI elements.
             DisplayPlaylistElements(false);
 
-            txtStatus.Text = "Select the folders for custom songs and local Beat Saber data.";
             //fbdCustomSongs.SelectedPath = "E:\\SteamLibrary\\steamapps\\common\\Beat Saber\\Beat Saber_Data\\CustomLevels"; // (specify folder for convenience while testing)
-            //fbdAppData.SelectedPath = "C:\\Users\\Admin\\AppData\\LocalLow\\Hyperbolic Magnetism\\Beat Saber"; // (specify folder for convenience while testing)
-            fbdAppData.SelectedPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) + "Low\\Hyperbolic Magnetism\\Beat Saber"; // v1.0.3.6 - Determine the AppData folder without needing to browse to it.
+            // v1.0.4.8 - Determine the AppData folder without needing to browse to it.
+            fbdAppData.SelectedPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) + "Low\\Hyperbolic Magnetism\\Beat Saber";
+            ofdPlayerData = ReadFile(ofdPlayerData, "PlayerData.dat");
+            ofdSongHashData = ReadFile(ofdSongHashData, "SongHashData.dat");
+            ofdLeaderboards = ReadFile(ofdLeaderboards, "LocalLeaderboards.dat");
 
             // v1.0.4.7 - Check to see if BeatSaver.xml already exists in the same folder as the LocalScoreFixer.exe executable.
             // If it doesn't then generate this using the Beat Saver API.
             // Otherwise, de-serialise BeatSDaver.xml into an array of BeatSaverSong entries.
             ofdBeatSaver.InitialDirectory = Application.StartupPath;
+        }
+
+        // v1.0.4.8 - Handle the potential Beat Saver API call so that the user is aware that something is happening while LocalScoreFixer loads.
+        private void LocalScoreFixer_Shown(object sender, EventArgs e)
+        {
+            Application.DoEvents();
+            txtStatus.Text = "Loading data from Beat Saver API...";
+
             if (!File.Exists(ofdBeatSaver.FileName))
             {
                 Globals.allBeatSaverSongs = GetBeatSaverData();
@@ -119,14 +133,16 @@ namespace LocalScoreFixer
             {
                 Globals.allBeatSaverSongs = DeSerialise(ofdBeatSaver.FileName);
             }
+
+            txtStatus.Text = "Select the folders for custom songs and local Beat Saber data.";
         }
 
         private void DisplayPlaylistElements(bool blnDisplay) // Show or hide playlist UI elements.
         {
             if (blnDisplay)
             {
-                this.Height = 350;
-                pnlMain.Height = 243;
+                this.Height = 280;
+                pnlMain.Height = 175;
                 lblPlaylist.Enabled = true;
                 lblPlaylist.Visible = true;
                 btnPlaylist.Enabled = true;
@@ -142,8 +158,8 @@ namespace LocalScoreFixer
                 btnPlaylist.Visible = false;
                 lblHintPlaylist.Enabled = false;
                 lblHintPlaylist.Visible = false;
-                pnlMain.Height = 193;
-                this.Height = 300;
+                pnlMain.Height = 125;
+                this.Height = 230;
             }
         }
 
@@ -314,7 +330,7 @@ namespace LocalScoreFixer
             }
         }
 
-        private void btnAppDataFolder_Click(object sender, EventArgs e) // Display the dialog for selecting the Beat Saber folder under AppData.
+        /*private void btnAppDataFolder_Click(object sender, EventArgs e) // Display the dialog for selecting the Beat Saber folder under AppData.
         {
             using (fbdAppData)
             {
@@ -338,7 +354,7 @@ namespace LocalScoreFixer
                     }
                 }
             }
-        }
+        }*/
 
         private void radModeSoloScores_CheckedChanged(object sender, EventArgs e)
         {
@@ -442,7 +458,7 @@ namespace LocalScoreFixer
             }
         }
 
-        // Construct a string containing the available difficulties for a given BeatSaverSong entry sorted alphabetically.
+        // v1.0.4.7 - Construct a string containing the available difficulties for a given BeatSaverSong entry sorted alphabetically.
         private string GetBeatSaverDifficulties(BeatSaverSong bsSong)
         {
             StringBuilder sbDifficulties = new StringBuilder();
@@ -616,7 +632,89 @@ namespace LocalScoreFixer
                 string[] strTempInfo = strTempReplace.Split('"');
 
                 // Populate the CustomSong entry.
-                customSongs[i].levelId = strTempInfo[3];
+                customSongs[i].levelId = strTempInfo[3].Replace("%%", "\\\"").Trim();
+                if (strTempInfo[3].Contains('∎')) // v1.0.4.8 - Capture additional info for matching against BeatSaverSong array.
+                {
+                    string[] strOldFormatInfo = strTempInfo[3].Split('∎');
+
+                    customSongs[i].songName = strOldFormatInfo[1].Replace("%%", "\\\"").Replace("´", string.Empty).Trim();
+                    customSongs[i].songSubName = strOldFormatInfo[2].Replace("%%", "\\\"").Trim();
+                    if (strOldFormatInfo[3].Length > 0)
+                    {
+                        customSongs[i].authorName = strOldFormatInfo[3].Replace("%%", "\\\"").Trim();
+                    }
+                    else // The BeatSaverSong entries have "unknown" specified instead of having a blank songAuthorName value so this is set to allow for matching.
+                    {
+                        customSongs[i].authorName = "unknown";
+                    }
+                    customSongs[i].bpm = strOldFormatInfo[4];
+
+                    // v1.0.4.8 - Look for a matching BeatSaverSong song while processing each LeaderboardScore entry that has the old levelId format.
+                    // This will try narrow down possible matches by comparing difficulties against the SongMapping array (if one is present).
+                    int[] intBeatSaverIndexes = Globals.allBeatSaverSongs.Select((value, index) => new { Value = value, Index = index })
+                        .Where(item =>
+                            item.Value.songName == customSongs[i].songName &&
+                            item.Value.songSubName == customSongs[i].songSubName &&
+                            item.Value.songAuthorName.ToUpper() == customSongs[i].authorName.ToUpper())
+                        .Select(item => item.Index)
+                        .ToArray();
+
+                    // Obtain the difficulties for the matching SongMapping entry.
+                    if (!String.IsNullOrEmpty(Globals.songMappings.FirstOrDefault(item => item.hash.ToUpper() == customSongs[i].levelId.Substring(0, 32).ToUpper()).difficulties))
+                    {
+                        string[] strDifficulties = Globals.songMappings.First(item => item.hash.ToUpper() == customSongs[i].levelId.Substring(0, 32).ToUpper()).difficulties.Split('-');
+                        if (strDifficulties.Count() > 0) // Try to compare these against the matched BeatSaverSong entries.
+                        {
+                            Array.Sort(strDifficulties, (x, y) => String.Compare(x, y)); // Sort the difficulties alphabetically so that the comparison is accurate.
+                            string strAllDifficulties = String.Join("-", strDifficulties);
+
+                            int intMatch = -1;
+
+                            // Compare these difficulties against the ones specified in each matching BeatSaverSong entry.
+                            for (int j = 0; j < intBeatSaverIndexes.Count(); j++)
+                            {
+                                int intBSIndex = intBeatSaverIndexes[j];
+                                string strBSDifficulties = GetBeatSaverDifficulties(Globals.allBeatSaverSongs[intBSIndex]);
+
+                                if (strAllDifficulties == strBSDifficulties)
+                                {
+                                    if (intMatch == -1) // Only capture the index if this is the first time a successful match has been done.
+                                    {
+                                        intMatch = intBeatSaverIndexes[j];
+                                    }
+                                    else // There are multiple matches so set intMatch as -2 to indicate this.
+                                    {
+                                        intMatch = -2;
+                                    }
+                                }
+                            }
+
+                            if (intMatch >= 0) // Only set the leaderboardIdAlt value if a legitimate matched index is present.
+                            {
+                                customSongs[i].levelIdAlt = "custom_level_" + Globals.allBeatSaverSongs[intMatch].hash.ToUpper();
+                            }
+                        }
+                    }
+                    else // Otherwise, only populate the leaderboardIdAlt value if a single BeatSaverSong song is found with the same basic details.
+                    {
+                        if (intBeatSaverIndexes.Count() == 1)
+                        {
+                            customSongs[i].levelIdAlt = "custom_level_" + Globals.allBeatSaverSongs[intBeatSaverIndexes[0]].hash.ToUpper();
+                        }
+                        else // No unique matching could be done so set levelIdAlt to be blank.
+                        {
+                            customSongs[i].levelIdAlt = string.Empty;
+                        }
+                    }
+                }
+                else
+                {
+                    customSongs[i].songName = string.Empty;
+                    customSongs[i].songSubName = string.Empty;
+                    customSongs[i].authorName = string.Empty;
+                    customSongs[i].bpm = string.Empty;
+                    customSongs[i].levelIdAlt = string.Empty;
+                }
                 customSongs[i].difficulty = strTempInfo[6].Substring(1, strTempInfo[6].Length - 2);
                 customSongs[i].beatmapCharacteristicName = strTempInfo[9];
                 customSongs[i].highScore = strTempInfo[12].Substring(1, strTempInfo[12].Length - 2);
@@ -625,7 +723,6 @@ namespace LocalScoreFixer
                 customSongs[i].maxRank = strTempInfo[18].Substring(1, strTempInfo[18].Length - 2);
                 customSongs[i].validScore = strTempInfo[20].Substring(1, strTempInfo[20].Length - 2);
                 customSongs[i].playCount = strTempInfo[22].Substring(1, strTempInfo[22].Length - 1);
-                customSongs[i].levelIdAlt = string.Empty;
                 customSongs[i].highScoreAlt = "0";
                 customSongs[i].maxComboAlt = "0";
                 customSongs[i].fullComboAlt = "false";
@@ -646,19 +743,19 @@ namespace LocalScoreFixer
                 {
                     // Get an array of indexes where the levelId contains the hash value being processed.
                     int[] intAllOldIndexes = customSongs.Select((value, index) => new { Value = value, Index = index })
-                                  .Where(item => item.Value.levelId.ToUpper().Contains(smEntry.hash.ToUpper()))
-                                  .Select(item => item.Index)
-                                  .ToArray();
+                        .Where(item => item.Value.levelId.ToUpper().Contains(smEntry.hash.ToUpper()))
+                        .Select(item => item.Index)
+                        .ToArray();
 
                     foreach (int intOldIndex in intAllOldIndexes)
                     {
-                        customSongs[intOldIndex].levelIdAlt = "custom_level_" + smEntry.songHash;
+                        customSongs[intOldIndex].levelIdAlt = "custom_level_" + smEntry.songHash.ToUpper();
 
                         // Get an array of indexes where the levelId contains the songHash value being processed to obtain any details from the new format.
                         int[] intAllNewIndexes = customSongs.Select((value, index) => new { Value = value, Index = index })
-                                      .Where(item => item.Value.levelId.ToUpper().Contains(smEntry.songHash.ToUpper()))
-                                      .Select(item => item.Index)
-                                      .ToArray();
+                            .Where(item => item.Value.levelId.ToUpper().Contains(smEntry.songHash.ToUpper()))
+                            .Select(item => item.Index)
+                            .ToArray();
 
                         foreach (int intNewIndex in intAllNewIndexes)
                         {
@@ -680,7 +777,7 @@ namespace LocalScoreFixer
 
             // Output info to file (uncomment below lines to see contents of customSongs and/or songMappings array in Local Score Fixer folder).
             //Serialise(customSongs, "CustomSongs.xml");
-            //Serialise(songMappings, "SongMappings.xml");
+            //Serialise(Globals.songMappings, "SongMappings.xml");
 
             // Create a copy of PlayerData.dat using the current timestamp in the filename to avoid overwriting old backups.
             File.Copy(ofdPlayerData.FileName, Path.Combine(Path.GetDirectoryName(ofdPlayerData.FileName), "PlayerData_" + DateTime.Now.ToString("yyyyMMddHHmmssffff") + ".dat"));
@@ -980,7 +1077,7 @@ namespace LocalScoreFixer
 
             // Output info to file (uncomment below lines to see contents of leaderboardScores and/or songMappings array in Local Score Fixer folder).
             //Serialise(leaderboardScores, "LeaderboardScore.xml");
-            //Serialise(songMappings, "SongMappings.xml");
+            //Serialise(Globals.songMappings, "SongMappings.xml");
 
             // Create a copy of LocalLeaderboards.dat using the current timestamp in the filename to avoid overwriting old backups.
             File.Copy(ofdLeaderboards.FileName, Path.Combine(Path.GetDirectoryName(ofdLeaderboards.FileName), "LocalLeaderboards_" + DateTime.Now.ToString("yyyyMMddHHmmssffff") + ".dat"));
@@ -1084,7 +1181,7 @@ namespace LocalScoreFixer
 
             // Output info to file (uncomment below lines to see contents of playlistSongs array in Local Score Fixer folder).
             //Serialise(playlistSongs, "PlaylistSongs.xml");
-            //Serialise(songMappings, "SongMappings.xml");
+            //Serialise(Globals.songMappings, "SongMappings.xml");
 
             // Create a copy of the selected playlist file using the current timestamp in the filename to avoid overwriting old backups.
             File.Copy(ofdPlaylist.FileName, Path.Combine(Path.GetDirectoryName(ofdPlaylist.FileName), ofdPlaylist.FileName + "_" + DateTime.Now.ToString("yyyyMMddHHmmssffff") + ".bplist.txt"));
@@ -1109,6 +1206,7 @@ namespace LocalScoreFixer
             txtStatus.Text = "Process completed successfully.";
         }
 
+        // v1.0.4.7 - Manually re-create the BeatSaver.xml file by obtaining data from the Beat Saver API.
         private void btnRefresh_Click(object sender, EventArgs e)
         {
             Globals.allBeatSaverSongs = GetBeatSaverData();

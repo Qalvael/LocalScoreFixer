@@ -32,15 +32,12 @@
             this.ofdPlayerData = new System.Windows.Forms.OpenFileDialog();
             this.fbdCustomSongs = new System.Windows.Forms.FolderBrowserDialog();
             this.lblFolder = new System.Windows.Forms.Label();
-            this.lblAppData = new System.Windows.Forms.Label();
             this.txtCustomFolder = new System.Windows.Forms.TextBox();
             this.btnCustomFolder = new System.Windows.Forms.Button();
             this.ofdSongHashData = new System.Windows.Forms.OpenFileDialog();
             this.btnGo = new System.Windows.Forms.Button();
             this.pnlMain = new System.Windows.Forms.Panel();
             this.radModePartyScores = new System.Windows.Forms.RadioButton();
-            this.btnAppDataFolder = new System.Windows.Forms.Button();
-            this.txtAppDataFolder = new System.Windows.Forms.TextBox();
             this.lblHintPlaylist = new System.Windows.Forms.Label();
             this.btnPlaylist = new System.Windows.Forms.Button();
             this.lblPlaylist = new System.Windows.Forms.Label();
@@ -48,7 +45,6 @@
             this.radModePlaylists = new System.Windows.Forms.RadioButton();
             this.radModeSoloScores = new System.Windows.Forms.RadioButton();
             this.lblHintFolder = new System.Windows.Forms.Label();
-            this.lblHintFiles = new System.Windows.Forms.Label();
             this.txtStatus = new System.Windows.Forms.TextBox();
             this.lblStatus = new System.Windows.Forms.Label();
             this.ofdPlaylist = new System.Windows.Forms.OpenFileDialog();
@@ -87,15 +83,6 @@
             this.lblFolder.TabIndex = 1;
             this.lblFolder.Text = "Specify the custom song folder:";
             // 
-            // lblAppData
-            // 
-            this.lblAppData.AutoSize = true;
-            this.lblAppData.Location = new System.Drawing.Point(3, 66);
-            this.lblAppData.Name = "lblAppData";
-            this.lblAppData.Size = new System.Drawing.Size(173, 13);
-            this.lblAppData.TabIndex = 2;
-            this.lblAppData.Text = "Specify the local Beat Saber folder:";
-            // 
             // txtCustomFolder
             // 
             this.txtCustomFolder.Location = new System.Drawing.Point(186, 7);
@@ -123,7 +110,7 @@
             // 
             this.btnGo.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.btnGo.Enabled = false;
-            this.btnGo.Location = new System.Drawing.Point(33, 207);
+            this.btnGo.Location = new System.Drawing.Point(33, 139);
             this.btnGo.Name = "btnGo";
             this.btnGo.Size = new System.Drawing.Size(75, 23);
             this.btnGo.TabIndex = 8;
@@ -136,8 +123,6 @@
             this.pnlMain.BackColor = System.Drawing.SystemColors.Window;
             this.pnlMain.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.pnlMain.Controls.Add(this.radModePartyScores);
-            this.pnlMain.Controls.Add(this.btnAppDataFolder);
-            this.pnlMain.Controls.Add(this.txtAppDataFolder);
             this.pnlMain.Controls.Add(this.lblHintPlaylist);
             this.pnlMain.Controls.Add(this.btnPlaylist);
             this.pnlMain.Controls.Add(this.lblPlaylist);
@@ -145,23 +130,21 @@
             this.pnlMain.Controls.Add(this.radModePlaylists);
             this.pnlMain.Controls.Add(this.radModeSoloScores);
             this.pnlMain.Controls.Add(this.lblHintFolder);
-            this.pnlMain.Controls.Add(this.lblHintFiles);
             this.pnlMain.Controls.Add(this.txtStatus);
             this.pnlMain.Controls.Add(this.lblStatus);
             this.pnlMain.Controls.Add(this.lblFolder);
             this.pnlMain.Controls.Add(this.btnGo);
             this.pnlMain.Controls.Add(this.txtCustomFolder);
             this.pnlMain.Controls.Add(this.btnCustomFolder);
-            this.pnlMain.Controls.Add(this.lblAppData);
             this.pnlMain.Location = new System.Drawing.Point(12, 56);
             this.pnlMain.Name = "pnlMain";
-            this.pnlMain.Size = new System.Drawing.Size(660, 243);
+            this.pnlMain.Size = new System.Drawing.Size(660, 175);
             this.pnlMain.TabIndex = 9;
             // 
             // radModePartyScores
             // 
             this.radModePartyScores.AutoSize = true;
-            this.radModePartyScores.Location = new System.Drawing.Point(342, 113);
+            this.radModePartyScores.Location = new System.Drawing.Point(342, 63);
             this.radModePartyScores.Name = "radModePartyScores";
             this.radModePartyScores.Size = new System.Drawing.Size(153, 17);
             this.radModePartyScores.TabIndex = 21;
@@ -169,29 +152,11 @@
             this.radModePartyScores.UseVisualStyleBackColor = true;
             this.radModePartyScores.CheckedChanged += new System.EventHandler(this.radModePartyScores_CheckedChanged);
             // 
-            // btnAppDataFolder
-            // 
-            this.btnAppDataFolder.Location = new System.Drawing.Point(568, 61);
-            this.btnAppDataFolder.Name = "btnAppDataFolder";
-            this.btnAppDataFolder.Size = new System.Drawing.Size(75, 23);
-            this.btnAppDataFolder.TabIndex = 20;
-            this.btnAppDataFolder.Text = "Browse";
-            this.btnAppDataFolder.UseVisualStyleBackColor = true;
-            this.btnAppDataFolder.Click += new System.EventHandler(this.btnAppDataFolder_Click);
-            // 
-            // txtAppDataFolder
-            // 
-            this.txtAppDataFolder.Location = new System.Drawing.Point(186, 63);
-            this.txtAppDataFolder.Name = "txtAppDataFolder";
-            this.txtAppDataFolder.ReadOnly = true;
-            this.txtAppDataFolder.Size = new System.Drawing.Size(376, 20);
-            this.txtAppDataFolder.TabIndex = 19;
-            // 
             // lblHintPlaylist
             // 
             this.lblHintPlaylist.AutoSize = true;
             this.lblHintPlaylist.ForeColor = System.Drawing.SystemColors.ControlDarkDark;
-            this.lblHintPlaylist.Location = new System.Drawing.Point(3, 171);
+            this.lblHintPlaylist.Location = new System.Drawing.Point(3, 115);
             this.lblHintPlaylist.Name = "lblHintPlaylist";
             this.lblHintPlaylist.Size = new System.Drawing.Size(319, 13);
             this.lblHintPlaylist.TabIndex = 18;
@@ -199,7 +164,7 @@
             // 
             // btnPlaylist
             // 
-            this.btnPlaylist.Location = new System.Drawing.Point(186, 145);
+            this.btnPlaylist.Location = new System.Drawing.Point(186, 89);
             this.btnPlaylist.Name = "btnPlaylist";
             this.btnPlaylist.Size = new System.Drawing.Size(75, 23);
             this.btnPlaylist.TabIndex = 17;
@@ -210,7 +175,7 @@
             // lblPlaylist
             // 
             this.lblPlaylist.AutoSize = true;
-            this.lblPlaylist.Location = new System.Drawing.Point(3, 150);
+            this.lblPlaylist.Location = new System.Drawing.Point(3, 94);
             this.lblPlaylist.Name = "lblPlaylist";
             this.lblPlaylist.Size = new System.Drawing.Size(114, 13);
             this.lblPlaylist.TabIndex = 16;
@@ -219,7 +184,7 @@
             // lblMode
             // 
             this.lblMode.AutoSize = true;
-            this.lblMode.Location = new System.Drawing.Point(3, 115);
+            this.lblMode.Location = new System.Drawing.Point(3, 65);
             this.lblMode.Name = "lblMode";
             this.lblMode.Size = new System.Drawing.Size(125, 13);
             this.lblMode.TabIndex = 15;
@@ -228,7 +193,7 @@
             // radModePlaylists
             // 
             this.radModePlaylists.AutoSize = true;
-            this.radModePlaylists.Location = new System.Drawing.Point(501, 113);
+            this.radModePlaylists.Location = new System.Drawing.Point(501, 63);
             this.radModePlaylists.Name = "radModePlaylists";
             this.radModePlaylists.Size = new System.Drawing.Size(100, 17);
             this.radModePlaylists.TabIndex = 14;
@@ -240,7 +205,7 @@
             // 
             this.radModeSoloScores.AutoSize = true;
             this.radModeSoloScores.Checked = true;
-            this.radModeSoloScores.Location = new System.Drawing.Point(186, 113);
+            this.radModeSoloScores.Location = new System.Drawing.Point(186, 63);
             this.radModeSoloScores.Name = "radModeSoloScores";
             this.radModeSoloScores.Size = new System.Drawing.Size(150, 17);
             this.radModeSoloScores.TabIndex = 13;
@@ -259,21 +224,10 @@
             this.lblHintFolder.TabIndex = 12;
             this.lblHintFolder.Text = "(Hint: Browse to <Beat Saber install folder>\\Beat Saber_Data\\CustomLevels\\)";
             // 
-            // lblHintFiles
-            // 
-            this.lblHintFiles.AutoSize = true;
-            this.lblHintFiles.ForeColor = System.Drawing.SystemColors.ControlDarkDark;
-            this.lblHintFiles.Location = new System.Drawing.Point(3, 86);
-            this.lblHintFiles.Name = "lblHintFiles";
-            this.lblHintFiles.Size = new System.Drawing.Size(463, 13);
-            this.lblHintFiles.TabIndex = 11;
-            this.lblHintFiles.Text = "(Hint: Browse to C:\\Users\\<username>\\AppData\\LocalLow\\Hyperbolic Magnetism\\Beat S" +
-    "aber\\)";
-            // 
             // txtStatus
             // 
             this.txtStatus.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.txtStatus.Location = new System.Drawing.Point(186, 209);
+            this.txtStatus.Location = new System.Drawing.Point(186, 141);
             this.txtStatus.Name = "txtStatus";
             this.txtStatus.ReadOnly = true;
             this.txtStatus.Size = new System.Drawing.Size(457, 20);
@@ -283,7 +237,7 @@
             // 
             this.lblStatus.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.lblStatus.AutoSize = true;
-            this.lblStatus.Location = new System.Drawing.Point(136, 212);
+            this.lblStatus.Location = new System.Drawing.Point(136, 144);
             this.lblStatus.Name = "lblStatus";
             this.lblStatus.Size = new System.Drawing.Size(40, 13);
             this.lblStatus.TabIndex = 9;
@@ -321,12 +275,13 @@
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.SystemColors.Control;
-            this.ClientSize = new System.Drawing.Size(684, 311);
+            this.ClientSize = new System.Drawing.Size(684, 241);
             this.Controls.Add(this.btnRefresh);
             this.Controls.Add(this.pnlMain);
             this.Controls.Add(this.lblTitle);
             this.Name = "LocalScoreFixer";
             this.Text = "Local Score Fixer";
+            this.Shown += new System.EventHandler(this.LocalScoreFixer_Shown);
             this.pnlMain.ResumeLayout(false);
             this.pnlMain.PerformLayout();
             this.ResumeLayout(false);
@@ -340,7 +295,6 @@
         private System.Windows.Forms.OpenFileDialog ofdPlayerData;
         private System.Windows.Forms.FolderBrowserDialog fbdCustomSongs;
         private System.Windows.Forms.Label lblFolder;
-        private System.Windows.Forms.Label lblAppData;
         private System.Windows.Forms.TextBox txtCustomFolder;
         private System.Windows.Forms.Button btnCustomFolder;
         private System.Windows.Forms.OpenFileDialog ofdSongHashData;
@@ -348,7 +302,6 @@
         private System.Windows.Forms.Panel pnlMain;
         private System.Windows.Forms.Label lblStatus;
         private System.Windows.Forms.TextBox txtStatus;
-        private System.Windows.Forms.Label lblHintFiles;
         private System.Windows.Forms.Label lblHintFolder;
         private System.Windows.Forms.RadioButton radModeSoloScores;
         private System.Windows.Forms.RadioButton radModePlaylists;
@@ -357,8 +310,6 @@
         private System.Windows.Forms.Label lblPlaylist;
         private System.Windows.Forms.OpenFileDialog ofdPlaylist;
         private System.Windows.Forms.Label lblHintPlaylist;
-        private System.Windows.Forms.TextBox txtAppDataFolder;
-        private System.Windows.Forms.Button btnAppDataFolder;
         private System.Windows.Forms.FolderBrowserDialog fbdAppData;
         private System.Windows.Forms.OpenFileDialog ofdLeaderboards;
         private System.Windows.Forms.RadioButton radModePartyScores;
