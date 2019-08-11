@@ -54,6 +54,7 @@ namespace LocalScoreFixer
         public string maxRankAlt;
         public string validScoreAlt;
         public string playCountAlt;
+        public bool convert;
         public bool skip;
     }
 
@@ -329,32 +330,6 @@ namespace LocalScoreFixer
                 }
             }
         }
-
-        /*private void btnAppDataFolder_Click(object sender, EventArgs e) // Display the dialog for selecting the Beat Saber folder under AppData.
-        {
-            using (fbdAppData)
-            {
-                if (fbdAppData.ShowDialog() == DialogResult.OK && !string.IsNullOrWhiteSpace(fbdAppData.SelectedPath))
-                {
-                    txtAppDataFolder.Text = fbdAppData.SelectedPath; // Populate the folder path.
-                    ofdPlayerData = ReadFile(ofdPlayerData, "PlayerData.dat");
-                    ofdSongHashData = ReadFile(ofdSongHashData, "SongHashData.dat");
-                    ofdLeaderboards = ReadFile(ofdLeaderboards, "LocalLeaderboards.dat");
-
-                    // Enable the Go button?
-                    if (FileFolderCheck())
-                    {
-                        btnGo.Enabled = true;
-                        txtStatus.Text = "Ready to process.";
-                    }
-                    else
-                    {
-                        btnGo.Enabled = false;
-                        txtStatus.Text = "Select the folders for custom songs and local Beat Saber data.";
-                    }
-                }
-            }
-        }*/
 
         private void radModeSoloScores_CheckedChanged(object sender, EventArgs e)
         {
@@ -648,8 +623,9 @@ namespace LocalScoreFixer
                         customSongs[i].authorName = "unknown";
                     }
                     customSongs[i].bpm = strOldFormatInfo[4];
+                    customSongs[i].convert = true; // v1.0.4.9 - The 'convert' flag indicates if this entry should try to be matched to get an updated levelId.
 
-                    // v1.0.4.8 - Look for a matching BeatSaverSong song while processing each LeaderboardScore entry that has the old levelId format.
+                    // v1.0.4.8 - Look for a matching BeatSaverSong song while processing each CustomSong entry that has the old levelId format.
                     // This will try narrow down possible matches by comparing difficulties against the SongMapping array (if one is present).
                     int[] intBeatSaverIndexes = Globals.allBeatSaverSongs.Select((value, index) => new { Value = value, Index = index })
                         .Where(item =>
@@ -714,6 +690,7 @@ namespace LocalScoreFixer
                     customSongs[i].authorName = string.Empty;
                     customSongs[i].bpm = string.Empty;
                     customSongs[i].levelIdAlt = string.Empty;
+                    customSongs[i].convert = false; // v1.0.4.9 - This entry isn't in the old format so it doesn't need to be updated.
                 }
                 customSongs[i].difficulty = strTempInfo[6].Substring(1, strTempInfo[6].Length - 2);
                 customSongs[i].beatmapCharacteristicName = strTempInfo[9];
@@ -743,7 +720,7 @@ namespace LocalScoreFixer
                 {
                     // Get an array of indexes where the levelId contains the hash value being processed.
                     int[] intAllOldIndexes = customSongs.Select((value, index) => new { Value = value, Index = index })
-                        .Where(item => item.Value.levelId.ToUpper().Contains(smEntry.hash.ToUpper()))
+                        .Where(item => item.Value.levelId.ToUpper().Contains(smEntry.hash.ToUpper()) && item.Value.convert)
                         .Select(item => item.Index)
                         .ToArray();
 
@@ -772,6 +749,112 @@ namespace LocalScoreFixer
                             }
                         }
                     }
+                }
+            }
+
+            // v1.0.4.9 - Consolidate any duplicate entries for the same custom song/difficulty/beatmapCharacteristicName combination.
+            // Get all unique combination of levelId and difficulty values from the CustomSong array which aren't going to be skipped.
+            List<string> strUniqueIds = customSongs.Select((value, index) => new { Value = value, Index = index })
+                .Where(item => !item.Value.skip).Select(item => item.Value.levelId + "%%" + item.Value.difficulty + "%%" + item.Value.beatmapCharacteristicName).Distinct().ToList();
+
+            // Iterate through each combination and consolidate the stats into a new CustomSong entry.
+            foreach (string strUniqueId in strUniqueIds)
+            {
+                string[] strConsolidatingInfo = strUniqueId.Split(new string[] { "%%" }, StringSplitOptions.None);
+
+                // Find any CustomSong entries where the levelId, difficulty and beatmapCharacteristicName match and which aren't going to be skipped.
+                int[] intConsolidatingIndexes = customSongs.Select((value, index) => new { Value = value, Index = index })
+                    .Where(item => 
+                        item.Value.levelId.ToUpper() == strConsolidatingInfo[0].ToUpper() &&
+                        item.Value.difficulty == strConsolidatingInfo[1] &&
+                        item.Value.beatmapCharacteristicName == strConsolidatingInfo[2] &&
+                        !item.Value.skip
+                    )
+                    .Select(item => item.Index)
+                    .ToArray();
+
+                if (intConsolidatingIndexes.Count() > 1) // Only bother consolidating these if there is more than one match.
+                {
+                    CustomSong csNewEntry = new CustomSong(); // Create the new CustomSong entry and populate it with default values.
+                    csNewEntry.levelId = strConsolidatingInfo[0];
+                    csNewEntry.songName = string.Empty;
+                    csNewEntry.songSubName = string.Empty;
+                    csNewEntry.authorName = string.Empty;
+                    csNewEntry.bpm = string.Empty;
+                    csNewEntry.difficulty = strConsolidatingInfo[1];
+                    csNewEntry.beatmapCharacteristicName = strConsolidatingInfo[2];
+                    csNewEntry.highScore = "0";
+                    csNewEntry.maxCombo = "0";
+                    csNewEntry.fullCombo = "false";
+                    csNewEntry.maxRank = "0";
+                    csNewEntry.validScore = "false";
+                    csNewEntry.playCount = "0";
+                    csNewEntry.levelIdAlt = string.Empty;
+                    csNewEntry.highScoreAlt = "0";
+                    csNewEntry.maxComboAlt = "0";
+                    csNewEntry.fullComboAlt = "false";
+                    csNewEntry.maxRankAlt = "0";
+                    csNewEntry.validScoreAlt = "false";
+                    csNewEntry.playCountAlt = "0";
+                    csNewEntry.convert = false;
+                    csNewEntry.skip = false;
+
+                    for (i = 0; i < intConsolidatingIndexes.Count(); i++)
+                    {
+                        int intIndex = intConsolidatingIndexes[i];
+
+                        // Obtain the best values when comparing the new CustomSong entry against the current item from the consolidation array.
+                        csNewEntry.highScore = Math.Max(Convert.ToInt32(csNewEntry.highScore), Convert.ToInt32(customSongs[intIndex].highScore)).ToString();
+                        csNewEntry.maxCombo = Math.Max(Convert.ToInt32(csNewEntry.maxCombo), Convert.ToInt32(customSongs[intIndex].maxCombo)).ToString();
+                        if (Convert.ToBoolean(csNewEntry.fullCombo) || Convert.ToBoolean(customSongs[intIndex].fullCombo))
+                        {
+                            csNewEntry.fullCombo = "true";
+                        }
+                        else
+                        {
+                            csNewEntry.fullCombo = "false";
+                        }
+                        csNewEntry.maxRank = Math.Max(Convert.ToInt32(csNewEntry.maxRank), Convert.ToInt32(customSongs[intIndex].maxRank)).ToString();
+                        if (Convert.ToBoolean(csNewEntry.validScore) || Convert.ToBoolean(customSongs[intIndex].validScore))
+                        {
+                            csNewEntry.validScore = "true";
+                        }
+                        else
+                        {
+                            csNewEntry.validScore = "false";
+                        }
+                        int intPlayCount = Convert.ToInt32(csNewEntry.playCount) + Convert.ToInt32(customSongs[intIndex].playCount);
+                        csNewEntry.playCount = intPlayCount.ToString();
+
+                        if (!String.IsNullOrEmpty(customSongs[intIndex].levelIdAlt)) // Only get the 'Alt' information if this is present.
+                        {
+                            csNewEntry.highScoreAlt = Math.Max(Convert.ToInt32(csNewEntry.highScoreAlt), Convert.ToInt32(customSongs[intIndex].highScoreAlt)).ToString();
+                            csNewEntry.maxCombo = Math.Max(Convert.ToInt32(csNewEntry.maxComboAlt), Convert.ToInt32(customSongs[intIndex].maxComboAlt)).ToString();
+                            if (Convert.ToBoolean(csNewEntry.fullComboAlt) || Convert.ToBoolean(customSongs[intIndex].fullComboAlt))
+                            {
+                                csNewEntry.fullComboAlt = "true";
+                            }
+                            else
+                            {
+                                csNewEntry.fullComboAlt = "false";
+                            }
+                            csNewEntry.maxRank = Math.Max(Convert.ToInt32(csNewEntry.maxRankAlt), Convert.ToInt32(customSongs[intIndex].maxRankAlt)).ToString();
+                            if (Convert.ToBoolean(csNewEntry.validScoreAlt) || Convert.ToBoolean(customSongs[intIndex].validScoreAlt))
+                            {
+                                csNewEntry.validScoreAlt = "true";
+                            }
+                            else
+                            {
+                                csNewEntry.validScoreAlt = "false";
+                            }
+                            int intPlayCountAlt = Convert.ToInt32(csNewEntry.playCountAlt) + Convert.ToInt32(customSongs[intIndex].playCountAlt);
+                            csNewEntry.playCountAlt = intPlayCountAlt.ToString();
+                        }
+
+                        customSongs[intIndex].skip = true; // Set this item to be skipped since we have consolidated it with the new customSong entry.
+                    }
+                    Array.Resize(ref customSongs, customSongs.Count() + 1); // Update size of the CustomSong array and add the new consolidated entry.
+                    customSongs[customSongs.Count() - 1] = csNewEntry;
                 }
             }
 
